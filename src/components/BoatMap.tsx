@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { createBoatIcon } from '@/utils/leafletUtils';
+import { createBoatIcon, createWaypointIcon } from '@/utils/leafletUtils';
 import FixLeafletIcon from '@/components/map/FixLeafletIcon';
 import MapEventHandler from '@/components/map/MapEventHandler';
 import { BoatMapProps, Waypoint } from '@/types/map';
@@ -68,14 +68,22 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
         </Marker>
         
         {/* Waypoint Markers */}
-        {waypoints.map((waypoint) => (
-          <Marker 
-            key={waypoint.id} 
-            position={[waypoint.lat, waypoint.lng]}
-          >
-            <Popup>{waypoint.name}</Popup>
-          </Marker>
-        ))}
+        {waypoints.map((waypoint, index) => {
+          // Determine if this is the most recent waypoint
+          const isLatestWaypoint = index === waypoints.length - 1;
+          // Create the appropriate icon based on whether it's the latest
+          const waypointIcon = createWaypointIcon(isLatestWaypoint);
+          
+          return (
+            <Marker 
+              key={waypoint.id} 
+              position={[waypoint.lat, waypoint.lng]}
+              icon={waypointIcon}
+            >
+              <Popup>{waypoint.name}</Popup>
+            </Marker>
+          );
+        })}
         
         {/* Path between waypoints */}
         {pathCoordinates.length > 1 && (
