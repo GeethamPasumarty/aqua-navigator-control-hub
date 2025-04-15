@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import BoatMap from '@/components/BoatMap';
 import StatusPanel from '@/components/StatusPanel';
@@ -103,7 +102,7 @@ const Index = () => {
     }, 2000);
   };
   
-  // Add waypoint
+  // Handle adding waypoint from map
   const handleAddWaypoint = (waypoint: { name: string; lat: number; lng: number }) => {
     console.log("Adding waypoint:", waypoint);
     
