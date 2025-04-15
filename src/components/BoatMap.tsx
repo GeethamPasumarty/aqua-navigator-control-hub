@@ -1,21 +1,13 @@
+
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Navigation } from 'lucide-react';
 
-// Fix for Leaflet default icon paths
-// This is needed because Leaflet's default marker icons have absolute URLs
-// that don't work in a bundled environment
-useEffect(() => {
-  // Fix the default icon issue
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  });
-}, []);
+interface BoatMapProps {
+  onAddWaypoint?: (lat: number, lng: number) => void;
+}
 
 // Custom boat icon
 const boatIcon = new L.Icon({
@@ -24,10 +16,6 @@ const boatIcon = new L.Icon({
   iconAnchor: [14, 14],
   popupAnchor: [0, -14],
 });
-
-interface BoatMapProps {
-  onAddWaypoint?: (lat: number, lng: number) => void;
-}
 
 // Component to handle map clicks and update center
 const MapEventHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void }> = ({ onMapClick }) => {
@@ -47,6 +35,21 @@ const MapEventHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void
       map.off('click', handleClick);
     };
   }, [map, onMapClick]);
+  
+  return null;
+};
+
+// This needs to be inside the component to ensure React lifecycle hooks work properly
+const FixLeafletIcon = () => {
+  useEffect(() => {
+    // Fix the default icon issue
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    });
+  }, []);
   
   return null;
 };
@@ -88,6 +91,8 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
         style={{ height: '100%', width: '100%' }} 
         zoomControl={false}
       >
+        <FixLeafletIcon />
+        
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -128,13 +133,6 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
         
         {/* Map event handler */}
         <MapEventHandler onMapClick={handleMapClick} />
-        
-        {/* Add zoom control in top-right */}
-        <div className="leaflet-top leaflet-right">
-          <div className="leaflet-control leaflet-bar">
-            <L.Control.Zoom position="topright" />
-          </div>
-        </div>
       </MapContainer>
     </div>
   );
