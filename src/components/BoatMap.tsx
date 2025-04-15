@@ -1,13 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { MapPin, Plus } from 'lucide-react';
 
-interface BoatMapProps {
-  onAddWaypoint?: (lat: number, lng: number) => void;
-}
-
-const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
+const BoatMap: React.FC<{ onAddWaypoint?: (lat: number, lng: number) => void }> = ({ onAddWaypoint }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string>("");
@@ -22,6 +17,12 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
   // Initialize the map
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
+
+    // Validate that the token starts with 'pk.'
+    if (!mapboxToken.startsWith('pk.')) {
+      alert('Please enter a valid Mapbox PUBLIC access token (starts with pk.)');
+      return;
+    }
 
     mapboxgl.accessToken = mapboxToken;
     
@@ -127,10 +128,19 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 bg-gray-50 rounded-lg border border-marine-border">
         <div className="mb-4 text-center">
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Mapbox API Token Required</h3>
+          <h3 className="text-lg font-medium text-gray-700 mb-2">Mapbox PUBLIC API Token Required</h3>
           <p className="text-sm text-gray-500 mb-4">
-            Please enter your Mapbox public token to display the map. You can get one from your 
-            <a href="https://account.mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700"> Mapbox account</a>.
+            Please enter your Mapbox PUBLIC token to display the map. 
+            <br />
+            <strong>Important:</strong> The token must start with 'pk.'
+            <br />
+            Get one from your 
+            <a 
+              href="https://account.mapbox.com/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-blue-500 hover:text-blue-700"
+            > Mapbox account</a>.
           </p>
         </div>
         <div className="flex w-full max-w-md">
@@ -138,7 +148,7 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
             type="text"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
-            placeholder="pk.eyJ1IjoibWFwYm94LXVzZXIiLCJhIjoiY2o5..."
+            placeholder="pk.eyJ1IjoieW91cnVzZXJuYW1lIiwiYSI6...EXAMPLE"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
