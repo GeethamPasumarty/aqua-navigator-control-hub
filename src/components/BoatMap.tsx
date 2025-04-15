@@ -1,61 +1,14 @@
 
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Navigation } from 'lucide-react';
-
-interface BoatMapProps {
-  onAddWaypoint?: (lat: number, lng: number) => void;
-}
-
-// Custom boat icon
-const boatIcon = new L.Icon({
-  iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMzODg3YmUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1uYXZpZ2F0aW9uIj48cG9seWdvbiBwb2ludHM9IjMgMTEgMjIgMiAxMyAyMSAxMiAxNyAzIDExIi8+PC9zdmc+',
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-  popupAnchor: [0, -14],
-});
-
-// Component to handle map clicks and update center
-const MapEventHandler: React.FC<{ onMapClick: (lat: number, lng: number) => void }> = ({ onMapClick }) => {
-  const map = useMap();
-  
-  useEffect(() => {
-    if (!map) return;
-    
-    const handleClick = (e: L.LeafletMouseEvent) => {
-      const { lat, lng } = e.latlng;
-      onMapClick(lat, lng);
-    };
-    
-    map.on('click', handleClick);
-    
-    return () => {
-      map.off('click', handleClick);
-    };
-  }, [map, onMapClick]);
-  
-  return null;
-};
-
-// This needs to be inside the component to ensure React lifecycle hooks work properly
-const FixLeafletIcon = () => {
-  useEffect(() => {
-    // Fix the default icon issue
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
-  }, []);
-  
-  return null;
-};
+import { createBoatIcon } from '@/utils/leafletUtils';
+import FixLeafletIcon from '@/components/map/FixLeafletIcon';
+import MapEventHandler from '@/components/map/MapEventHandler';
+import { BoatMapProps, Waypoint } from '@/types/map';
 
 const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
-  const [waypoints, setWaypoints] = useState<Array<{ lat: number, lng: number, id: number, name: string }>>([
+  const [waypoints, setWaypoints] = useState<Waypoint[]>([
     { id: 1, lat: 37.8021, lng: -122.4186, name: "Waypoint 1" },
     { id: 2, lat: 37.8225, lng: -122.3788, name: "Waypoint 2" }
   ]);
@@ -63,13 +16,16 @@ const BoatMap: React.FC<BoatMapProps> = ({ onAddWaypoint }) => {
   // Boat position
   const boatPosition: [number, number] = [37.810, -122.405];
   
+  // Boat icon
+  const boatIcon = createBoatIcon();
+  
   // Handle map click
   const handleMapClick = (lat: number, lng: number) => {
     if (onAddWaypoint) {
       onAddWaypoint(lat, lng);
       
       // Add to local waypoints for visualization
-      const newWaypoint = {
+      const newWaypoint: Waypoint = {
         id: waypoints.length + 1,
         lat,
         lng,
