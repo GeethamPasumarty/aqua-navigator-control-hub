@@ -16,13 +16,18 @@ const Index = () => {
   const [batteryLevel, setBatteryLevel] = useState(92);
   const [signalStrength, setSignalStrength] = useState<'none' | 'weak' | 'good' | 'excellent'>('excellent');
   
-  const [sensors, setSensors] = useState([
-    { id: '1', name: 'Camera', status: 'online' as const, lastUpdated: '1m ago' },
-    { id: '2', name: 'GPS', status: 'online' as const, lastUpdated: '1m ago' },
-    { id: '3', name: 'IMU', status: 'online' as const, lastUpdated: '1m ago' },
-    { id: '4', name: 'Depth Sensor', status: 'online' as const, lastUpdated: '2m ago' },
-    { id: '5', name: 'Motor Left', status: 'online' as const, lastUpdated: '1m ago' },
-    { id: '6', name: 'Motor Right', status: 'online' as const, lastUpdated: '1m ago' }
+  const [sensors, setSensors] = useState<Array<{
+    id: string;
+    name: string;
+    status: 'online' | 'offline' | 'warning';
+    lastUpdated: string;
+  }>>([
+    { id: '1', name: 'Camera', status: 'online', lastUpdated: '1m ago' },
+    { id: '2', name: 'GPS', status: 'online', lastUpdated: '1m ago' },
+    { id: '3', name: 'IMU', status: 'online', lastUpdated: '1m ago' },
+    { id: '4', name: 'Depth Sensor', status: 'online', lastUpdated: '2m ago' },
+    { id: '5', name: 'Motor Left', status: 'online', lastUpdated: '1m ago' },
+    { id: '6', name: 'Motor Right', status: 'online', lastUpdated: '1m ago' }
   ]);
   
   const cameras = [
