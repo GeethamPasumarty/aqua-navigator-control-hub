@@ -7,7 +7,8 @@ const BoatMap: React.FC<{ onAddWaypoint?: (lat: number, lng: number) => void }> 
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string>("");
   const [tokenInput, setTokenInput] = useState<string>("");
-
+  const waypointsRef = useRef<mapboxgl.Marker[]>([]);
+  
   // Existing waypoints
   const initialWaypoints = [
     { id: 1, lat: 37.8021, lng: -122.4186, name: "Waypoint 1" },
@@ -28,6 +29,7 @@ const BoatMap: React.FC<{ onAddWaypoint?: (lat: number, lng: number) => void }> 
     
     if (map.current) return;
     
+    console.log("Initializing map");
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/navigation-day-v1',
@@ -42,6 +44,7 @@ const BoatMap: React.FC<{ onAddWaypoint?: (lat: number, lng: number) => void }> 
     map.current.on('load', () => {
       if (!map.current) return;
       
+      console.log("Map loaded, adding waypoints");
       // Add waypoints
       initialWaypoints.forEach(waypoint => {
         const el = document.createElement('div');
@@ -50,9 +53,11 @@ const BoatMap: React.FC<{ onAddWaypoint?: (lat: number, lng: number) => void }> 
                           <span class="text-xs font-bold">${waypoint.id}</span>
                         </div>`;
         
-        new mapboxgl.Marker(el)
+        const marker = new mapboxgl.Marker(el)
           .setLngLat([waypoint.lng, waypoint.lat])
           .addTo(map.current!);
+        
+        waypointsRef.current.push(marker);
       });
       
       // Add path between waypoints
@@ -98,24 +103,74 @@ const BoatMap: React.FC<{ onAddWaypoint?: (lat: number, lng: number) => void }> 
         }
       });
       
-      map.current.addLayer({
-        id: 'boat',
-        type: 'symbol',
-        source: 'boat',
-        layout: {
-          'icon-image': 'ferry-15',
-          'icon-size': 1.5,
-          'icon-allow-overlap': true,
-          'icon-rotate': 45
-        }
-      });
+      try {
+        map.current.addLayer({
+          id: 'boat',
+          type: 'symbol',
+          source: 'boat',
+          layout: {
+            'icon-image': 'ferry-15',
+            'icon-size': 1.5,
+            'icon-allow-overlap': true,
+            'icon-rotate': 45
+          }
+        });
+      } catch (error) {
+        console.warn("Could not add boat icon layer:", error);
+        
+        // Fallback to a circle if icon is missing
+        map.current.addLayer({
+          id: 'boat',
+          type: 'circle',
+          source: 'boat',
+          paint: {
+            'circle-radius': 8,
+            'circle-color': '#3887be',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff'
+          }
+        });
+      }
     });
 
     // Handle click to add waypoint
     map.current.on('click', (e) => {
       const { lng, lat } = e.lngLat;
+      console.log("Map clicked at:", lat, lng);
+      
       if (onAddWaypoint) {
         onAddWaypoint(lat, lng);
+        
+        // Visualize the new waypoint on the map without recreating it
+        const waypointId = waypointsRef.current.length + 1;
+        const el = document.createElement('div');
+        el.className = 'waypoint-marker';
+        el.innerHTML = `<div class="flex items-center justify-center w-6 h-6 bg-green-600 text-white rounded-full shadow-md">
+                          <span class="text-xs font-bold">${waypointId}</span>
+                        </div>`;
+        
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([lng, lat])
+          .addTo(map.current!);
+        
+        waypointsRef.current.push(marker);
+        
+        // Update path if we have at least 2 waypoints
+        if (map.current?.getSource('route') && waypointsRef.current.length >= 2) {
+          const coordinates = waypointsRef.current.map(marker => {
+            const lngLat = marker.getLngLat();
+            return [lngLat.lng, lngLat.lat];
+          });
+          
+          (map.current.getSource('route') as mapboxgl.GeoJSONSource).setData({
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates
+            }
+          });
+        }
       }
     });
 

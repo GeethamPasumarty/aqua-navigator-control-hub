@@ -35,6 +35,14 @@ const Index = () => {
     { id: 'bow', name: 'Bow Camera' },
     { id: 'stern', name: 'Stern Camera' }
   ];
+
+  // Store waypoints state
+  const [waypoints, setWaypoints] = useState<Array<{
+    id: number;
+    name: string;
+    lat: number;
+    lng: number;
+  }>>([]);
   
   const [logs, setLogs] = useState<LogEntry[]>([
     { id: '1', type: 'system', message: 'System initialized', timestamp: '10:30:45' },
@@ -97,6 +105,15 @@ const Index = () => {
   
   // Add waypoint
   const handleAddWaypoint = (waypoint: { name: string; lat: number; lng: number }) => {
+    console.log("Adding waypoint:", waypoint);
+    
+    const newWaypoint = {
+      id: waypoints.length + 1,
+      ...waypoint
+    };
+    
+    setWaypoints(prev => [...prev, newWaypoint]);
+    
     toast({
       title: "Waypoint Added",
       description: `${waypoint.name} (${waypoint.lat.toFixed(4)}, ${waypoint.lng.toFixed(4)})`
@@ -146,7 +163,7 @@ const Index = () => {
             {/* Main Map */}
             <div className="h-[500px]">
               <BoatMap onAddWaypoint={(lat, lng) => handleAddWaypoint({ 
-                name: `Waypoint ${(logs.length % 10) + 1}`, 
+                name: `Waypoint ${(waypoints.length % 10) + 1}`, 
                 lat, 
                 lng 
               })} />
