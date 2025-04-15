@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -97,5 +98,20 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+  
+  /* Custom styles for the Aqua Navigator Control Hub */
+  .waypoint-marker {
+    cursor: pointer;
+  }
+  
+  .waypoint-marker:hover {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+  }
+  
+  .mapboxgl-ctrl-logo,
+  .mapboxgl-ctrl-attrib {
+    display: none !important;
   }
 }
