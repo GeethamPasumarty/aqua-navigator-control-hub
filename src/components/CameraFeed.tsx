@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, ChevronDown, RefreshCw, Zap } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -128,7 +129,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
 
   // Process frame with OpenCV
   const processFrame = () => {
-    if (!openCVLoaded || !videoRef.current || !canvasRef.current || !streaming) {
+    if (!window.cv || !videoRef.current || !canvasRef.current || !streaming) {
       return;
     }
 
@@ -150,18 +151,18 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
       const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
       
       // Create OpenCV matrix from image data
-      const src = cv.matFromImageData(imageData);
-      const dst = new cv.Mat();
+      const src = window.cv.matFromImageData(imageData);
+      const dst = new window.cv.Mat();
       
       // Apply some OpenCV processing (grayscale conversion and edge detection)
-      cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY);
-      cv.Canny(src, dst, 50, 150, 3, false);
+      window.cv.cvtColor(src, src, window.cv.COLOR_RGBA2GRAY);
+      window.cv.Canny(src, dst, 50, 150, 3, false);
       
       // Convert back to RGBA for display
-      cv.cvtColor(dst, dst, cv.COLOR_GRAY2RGBA);
+      window.cv.cvtColor(dst, dst, window.cv.COLOR_GRAY2RGBA);
       
       // Put the processed image back on the canvas
-      cv.imshow(canvas, dst);
+      window.cv.imshow(canvas, dst);
       
       // Clean up OpenCV matrices to prevent memory leaks
       src.delete();
