@@ -1,11 +1,14 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, ChevronDown, RefreshCw, Zap } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
 // Import OpenCV.js
-declare const cv: any;
+declare global {
+  interface Window {
+    cv: any;
+  }
+}
 
 interface CameraOption {
   id: string;
