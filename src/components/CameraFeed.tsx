@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, ChevronDown, RefreshCw, Zap } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 
 // Import OpenCV.js
 declare global {
@@ -36,13 +38,11 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const processingIntervalRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const openCVRef = useRef<boolean>(false); // Track if OpenCV is truly initialized
+  const openCVRef = useRef<boolean>(false);
 
   // Load OpenCV
   useEffect(() => {
-    // Check if OpenCV is already loaded
     if (window.cv) {
       console.log("OpenCV is already available in window object");
       setOpenCVLoaded(true);
@@ -50,7 +50,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
       return;
     }
 
-    // Create script tag to load OpenCV
     const script = document.createElement('script');
     script.src = 'https://docs.opencv.org/4.5.5/opencv.js';
     script.async = true;
@@ -73,7 +72,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     };
     document.body.appendChild(script);
 
-    // Cleanup
     return () => {
       if (document.body.contains(script)) {
         document.body.removeChild(script);
@@ -84,19 +82,12 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   // Cleanup function to properly stop camera stream and processing
   const cleanupCamera = () => {
     console.log("Cleaning up camera and stopping streams");
-    // Stop animation frame
+    
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
     
-    // Clear any interval if it exists
-    if (processingIntervalRef.current) {
-      clearInterval(processingIntervalRef.current);
-      processingIntervalRef.current = null;
-    }
-    
-    // Stop all tracks in the media stream
     if (streamRef.current) {
       const tracks = streamRef.current.getTracks();
       tracks.forEach(track => {
@@ -106,7 +97,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
       streamRef.current = null;
     }
     
-    // Clear video source
     if (videoRef.current && videoRef.current.srcObject) {
       videoRef.current.srcObject = null;
     }
@@ -117,11 +107,9 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   // Function to get available cameras
   const getAvailableCameras = async () => {
     try {
-      // First clean up any existing camera
       cleanupCamera();
       
       setLoading(true);
-      // Check if media devices are supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
         toast({
           title: "Camera Error",
@@ -131,10 +119,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
         return;
       }
 
-      // Get all media devices
       const devices = await navigator.mediaDevices.enumerateDevices();
-      
-      // Filter for video inputs (cameras)
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       
       if (videoDevices.length === 0) {
@@ -145,7 +130,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
         return;
       }
       
-      // Format camera devices for our component
       const cameraOptions: CameraOption[] = videoDevices.map(device => ({
         id: device.deviceId,
         name: device.label || `Camera ${device.deviceId.slice(0, 5)}...`
@@ -153,7 +137,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
       
       setCameras(cameraOptions);
       
-      // Select first camera if none selected
       if (!selectedCamera && cameraOptions.length > 0) {
         setSelectedCamera(cameraOptions[0].id);
       }
@@ -169,10 +152,9 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     }
   };
 
-  // Process frame with OpenCV using requestAnimationFrame for smoother performance
+  // Process frame using requestAnimationFrame
   const processFrame = () => {
-    if (!openCVRef.current || !videoRef.current || !canvasRef.current || !streaming) {
-      // Re-schedule next frame even if we can't process now
+    if (!videoRef.current || !canvasRef.current || !streaming) {
       animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
     }
@@ -191,39 +173,32 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     canvas.height = video.videoHeight;
 
     try {
-      // Always draw the current video frame to canvas
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      if (processingEnabled && window.cv) {
-        // Get image data from canvas
+      if (processingEnabled && window.cv && openCVRef.current) {
+        // Process with OpenCV
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Create OpenCV matrix from image data
         const src = window.cv.matFromImageData(imageData);
         const dst = new window.cv.Mat();
         
-        // Apply OpenCV processing (grayscale conversion and edge detection)
         window.cv.cvtColor(src, src, window.cv.COLOR_RGBA2GRAY);
         window.cv.Canny(src, dst, 50, 150, 3, false);
-        
-        // Convert back to RGBA for display
         window.cv.cvtColor(dst, dst, window.cv.COLOR_GRAY2RGBA);
         
-        // Put the processed image back on the canvas using imshow
         window.cv.imshow(canvas, dst);
         
-        // Clean up OpenCV matrices to prevent memory leaks
         src.delete();
         dst.delete();
         
         console.log("OpenCV processing applied");
+      } else {
+        // Draw raw camera feed
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
       }
       
       // Request next frame
       animationFrameRef.current = requestAnimationFrame(processFrame);
     } catch (error) {
-      console.error('Error processing frame with OpenCV:', error);
-      // If error occurs, just display the unprocessed video frame
+      console.error('Error processing frame:', error);
+      // Fallback to raw video
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       animationFrameRef.current = requestAnimationFrame(processFrame);
     }
@@ -231,7 +206,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
 
   // Function to start streaming from selected camera
   const startCamera = async () => {
-    // Clean up any existing stream first
     cleanupCamera();
     
     if (!selectedCamera) {
@@ -246,37 +220,27 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     try {
       setLoading(true);
       
-      // Use more flexible constraints to avoid errors
       const constraints = {
         video: selectedCamera === 'default' 
           ? true 
-          : { 
-              deviceId: { exact: selectedCamera }, // Change from 'ideal' to 'exact' for better matching
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
+          : { deviceId: { exact: selectedCamera }, width: { ideal: 1280 }, height: { ideal: 720 } }
       };
       
       console.log(`Requesting camera with constraints:`, constraints);
       
-      // Request access to the selected camera
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log(`Camera stream obtained with ${stream.getTracks().length} tracks`);
       
-      // Store the stream for cleanup
       streamRef.current = stream;
       
-      // Set the stream as the video source
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         
-        // Wait for video to be ready before starting playback
         videoRef.current.onloadedmetadata = () => {
           if (videoRef.current) {
             videoRef.current.play()
               .then(() => {
                 setStreaming(true);
-                // Start frame processing with requestAnimationFrame for better performance
                 animationFrameRef.current = requestAnimationFrame(processFrame);
                 
                 toast({
@@ -318,21 +282,13 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
       return;
     }
     
-    setProcessingEnabled(!processingEnabled);
-    
-    // Show toast based on new state
-    toast({
-      title: !processingEnabled ? "OpenCV Processing Enabled" : "OpenCV Processing Disabled",
-      description: !processingEnabled ? "Real-time video processing is now active" : "Showing raw camera feed"
-    });
+    setProcessingEnabled(prevState => !prevState);
   };
 
   // Handle dropdown camera selection
   const handleCameraSelect = (cameraId: string) => {
     console.log(`Switching camera to: ${cameraId}`);
-    // First clean up the existing camera
     cleanupCamera();
-    // Then set the new camera and close dropdown
     setSelectedCamera(cameraId);
     setDropdownOpen(false);
   };
@@ -341,7 +297,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   useEffect(() => {
     getAvailableCameras();
     
-    // Cleanup function to stop the stream when component unmounts
     return () => {
       cleanupCamera();
     };
@@ -351,8 +306,6 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   useEffect(() => {
     if (selectedCamera) {
       startCamera();
-    } else {
-      cleanupCamera();
     }
   }, [selectedCamera]);
 
@@ -400,16 +353,14 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
-          <Button
-            variant={processingEnabled ? "default" : "outline"}
-            size="sm"
-            onClick={toggleProcessing}
-            disabled={!openCVLoaded || !streaming}
-            className="flex items-center gap-1"
-          >
-            <Zap size={14} className={processingEnabled ? "text-yellow-300" : ""} />
-            <span className="text-xs">OpenCV</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-600">OpenCV</span>
+            <Switch
+              checked={processingEnabled}
+              onCheckedChange={toggleProcessing}
+              disabled={!openCVLoaded || !streaming}
+            />
+          </div>
           
           <button 
             onClick={getAvailableCameras}
@@ -444,7 +395,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
           </div>
         )}
         
-        {/* Hidden video element (used as source for processing) */}
+        {/* Hidden video element */}
         <video 
           ref={videoRef}
           className="hidden"
@@ -453,7 +404,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
           muted
         />
         
-        {/* Canvas for displaying processed frames */}
+        {/* Canvas for displaying frames */}
         <canvas 
           ref={canvasRef}
           className={`absolute inset-0 w-full h-full object-cover ${!streaming ? 'opacity-0' : ''}`}
