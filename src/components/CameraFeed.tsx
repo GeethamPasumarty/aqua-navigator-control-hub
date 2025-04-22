@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, ChevronDown, RefreshCw, Zap } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -82,9 +81,45 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     };
   }, []);
 
+  // Cleanup function to properly stop camera stream and processing
+  const cleanupCamera = () => {
+    console.log("Cleaning up camera and stopping streams");
+    // Stop animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Clear any interval if it exists
+    if (processingIntervalRef.current) {
+      clearInterval(processingIntervalRef.current);
+      processingIntervalRef.current = null;
+    }
+    
+    // Stop all tracks in the media stream
+    if (streamRef.current) {
+      const tracks = streamRef.current.getTracks();
+      tracks.forEach(track => {
+        console.log(`Stopping track: ${track.kind} (${track.id})`);
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    
+    // Clear video source
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject = null;
+    }
+    
+    setStreaming(false);
+  };
+
   // Function to get available cameras
   const getAvailableCameras = async () => {
     try {
+      // First clean up any existing camera
+      cleanupCamera();
+      
       setLoading(true);
       // Check if media devices are supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
@@ -196,21 +231,8 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
 
   // Function to start streaming from selected camera
   const startCamera = async () => {
-    // Stop any existing stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-    }
-    
-    // Stop any existing processing
-    if (processingIntervalRef.current) {
-      window.clearInterval(processingIntervalRef.current);
-      processingIntervalRef.current = null;
-    }
-    
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
+    // Clean up any existing stream first
+    cleanupCamera();
     
     if (!selectedCamera) {
       toast({
@@ -229,14 +251,17 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
         video: selectedCamera === 'default' 
           ? true 
           : { 
-              deviceId: { ideal: selectedCamera },
+              deviceId: { exact: selectedCamera }, // Change from 'ideal' to 'exact' for better matching
               width: { ideal: 1280 },
               height: { ideal: 720 }
             }
       };
       
+      console.log(`Requesting camera with constraints:`, constraints);
+      
       // Request access to the selected camera
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log(`Camera stream obtained with ${stream.getTracks().length} tracks`);
       
       // Store the stream for cleanup
       streamRef.current = stream;
@@ -302,25 +327,23 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     });
   };
 
+  // Handle dropdown camera selection
+  const handleCameraSelect = (cameraId: string) => {
+    console.log(`Switching camera to: ${cameraId}`);
+    // First clean up the existing camera
+    cleanupCamera();
+    // Then set the new camera and close dropdown
+    setSelectedCamera(cameraId);
+    setDropdownOpen(false);
+  };
+
   // Initialize camera list and start default camera on component mount
   useEffect(() => {
     getAvailableCameras();
     
     // Cleanup function to stop the stream when component unmounts
     return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      
-      if (processingIntervalRef.current) {
-        window.clearInterval(processingIntervalRef.current);
-        processingIntervalRef.current = null;
-      }
-      
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
-      }
+      cleanupCamera();
     };
   }, []);
 
@@ -328,6 +351,8 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   useEffect(() => {
     if (selectedCamera) {
       startCamera();
+    } else {
+      cleanupCamera();
     }
   }, [selectedCamera]);
 
@@ -354,10 +379,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
               {cameras.map(camera => (
                 <button
                   key={camera.id}
-                  onClick={() => {
-                    setSelectedCamera(camera.id);
-                    setDropdownOpen(false);
-                  }}
+                  onClick={() => handleCameraSelect(camera.id)}
                   className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
                     camera.id === selectedCamera ? 'bg-marine-blue bg-opacity-10' : ''
                   }`}
@@ -366,10 +388,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
                 </button>
               ))}
               <button
-                onClick={() => {
-                  setSelectedCamera('default');
-                  setDropdownOpen(false);
-                }}
+                onClick={() => handleCameraSelect('default')}
                 className={`block w-full px-4 py-2 text-left text-sm hover:bg-gray-50 ${
                   selectedCamera === 'default' ? 'bg-marine-blue bg-opacity-10' : ''
                 }`}
