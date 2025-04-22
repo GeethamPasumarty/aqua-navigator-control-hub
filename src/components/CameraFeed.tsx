@@ -39,12 +39,15 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const processingIntervalRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const openCVRef = useRef<boolean>(false); // Track if OpenCV is truly initialized
 
   // Load OpenCV
   useEffect(() => {
     // Check if OpenCV is already loaded
     if (window.cv) {
+      console.log("OpenCV is already available in window object");
       setOpenCVLoaded(true);
+      openCVRef.current = true;
       return;
     }
 
@@ -55,6 +58,7 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     script.onload = () => {
       console.log('OpenCV.js loaded successfully');
       setOpenCVLoaded(true);
+      openCVRef.current = true;
       toast({
         title: "OpenCV Ready",
         description: "OpenCV.js has been loaded successfully"
@@ -132,7 +136,9 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
 
   // Process frame with OpenCV using requestAnimationFrame for smoother performance
   const processFrame = () => {
-    if (!window.cv || !videoRef.current || !canvasRef.current || !streaming) {
+    if (!openCVRef.current || !videoRef.current || !canvasRef.current || !streaming) {
+      // Re-schedule next frame even if we can't process now
+      animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
     }
 
@@ -140,17 +146,20 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
     
-    if (!context) return;
+    if (!context) {
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
 
     // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
     try {
-      // Draw the current video frame to canvas
+      // Always draw the current video frame to canvas
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      if (processingEnabled) {
+      if (processingEnabled && window.cv) {
         // Get image data from canvas
         const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
         
@@ -165,12 +174,14 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
         // Convert back to RGBA for display
         window.cv.cvtColor(dst, dst, window.cv.COLOR_GRAY2RGBA);
         
-        // Put the processed image back on the canvas
+        // Put the processed image back on the canvas using imshow
         window.cv.imshow(canvas, dst);
         
         // Clean up OpenCV matrices to prevent memory leaks
         src.delete();
         dst.delete();
+        
+        console.log("OpenCV processing applied");
       }
       
       // Request next frame
@@ -273,6 +284,15 @@ const CameraFeed: React.FC<CameraFeedProps> = ({
 
   // Toggle OpenCV processing
   const toggleProcessing = () => {
+    if (!openCVLoaded || !window.cv) {
+      toast({
+        title: "OpenCV Not Ready",
+        description: "OpenCV.js hasn't loaded yet. Please wait and try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setProcessingEnabled(!processingEnabled);
     
     // Show toast based on new state
