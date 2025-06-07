@@ -7,7 +7,7 @@ export interface Sensor {
   id: string;
   name: string;
   status: 'online' | 'offline' | 'warning';
-  last_updated: string;
+  lastUpdated: string;
 }
 
 export const useSensors = (vesselId?: string) => {
@@ -27,9 +27,11 @@ export const useSensors = (vesselId?: string) => {
 
       if (error) throw error;
       
-      const formattedSensors = data.map(sensor => ({
-        ...sensor,
-        last_updated: new Date(sensor.last_updated).toLocaleTimeString()
+      const formattedSensors: Sensor[] = (data || []).map(sensor => ({
+        id: sensor.id,
+        name: sensor.name,
+        status: sensor.status as 'online' | 'offline' | 'warning',
+        lastUpdated: new Date(sensor.last_updated).toLocaleTimeString()
       }));
       
       setSensors(formattedSensors);

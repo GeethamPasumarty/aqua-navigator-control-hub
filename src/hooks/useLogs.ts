@@ -28,8 +28,10 @@ export const useLogs = (vesselId?: string) => {
 
       if (error) throw error;
       
-      const formattedLogs = data.map(log => ({
-        ...log,
+      const formattedLogs: LogEntry[] = (data || []).map(log => ({
+        id: log.id,
+        type: log.type as 'system' | 'emergency',
+        message: log.message,
         timestamp: new Date(log.created_at).toLocaleTimeString()
       }));
       

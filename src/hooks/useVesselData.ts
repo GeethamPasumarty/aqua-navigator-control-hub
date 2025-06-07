@@ -26,7 +26,18 @@ export const useVesselData = () => {
         .single();
 
       if (error) throw error;
-      setVessel(data);
+      
+      // Cast the data to match our interface
+      const vesselData: Vessel = {
+        id: data.id,
+        name: data.name,
+        battery_percentage: data.battery_percentage,
+        signal_strength: data.signal_strength as 'none' | 'weak' | 'good' | 'excellent',
+        latitude: data.latitude,
+        longitude: data.longitude
+      };
+      
+      setVessel(vesselData);
     } catch (error) {
       console.error('Error fetching vessel:', error);
       toast({
@@ -72,7 +83,15 @@ export const useVesselData = () => {
         table: 'vessels'
       }, (payload) => {
         if (payload.eventType === 'UPDATE') {
-          setVessel(payload.new as Vessel);
+          const vesselData: Vessel = {
+            id: payload.new.id,
+            name: payload.new.name,
+            battery_percentage: payload.new.battery_percentage,
+            signal_strength: payload.new.signal_strength as 'none' | 'weak' | 'good' | 'excellent',
+            latitude: payload.new.latitude,
+            longitude: payload.new.longitude
+          };
+          setVessel(vesselData);
         }
       })
       .subscribe();
