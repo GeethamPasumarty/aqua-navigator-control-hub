@@ -1,59 +1,35 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useEffect } from 'react';
 import BoatMap from '@/components/BoatMap';
 import StatusPanel from '@/components/StatusPanel';
 import SensorStatus from '@/components/SensorStatus';
 import CameraFeed from '@/components/CameraFeed';
 import ControlPanel from '@/components/ControlPanel';
 import WaypointForm from '@/components/WaypointForm';
-import LogPanel, { LogEntry } from '@/components/LogPanel';
+import LogPanel from '@/components/LogPanel';
 import { useToast } from "@/hooks/use-toast";
+import { useVesselData } from '@/hooks/useVesselData';
+import { useSensors } from '@/hooks/useSensors';
+import { useWaypoints } from '@/hooks/useWaypoints';
+import { useLogs } from '@/hooks/useLogs';
+import { useCameras } from '@/hooks/useCameras';
 
 const Index = () => {
   const { toast } = useToast();
-  
-  // Sample data
-  const [batteryLevel, setBatteryLevel] = useState(92);
-  const [signalStrength, setSignalStrength] = useState<'none' | 'weak' | 'good' | 'excellent'>('excellent');
-  
-  const [sensors, setSensors] = useState<Array<{
-    id: string;
-    name: string;
-    status: 'online' | 'offline' | 'warning';
-    lastUpdated: string;
-  }>>([
-    { id: '1', name: 'Camera', status: 'online', lastUpdated: '1m ago' },
-    { id: '2', name: 'GPS', status: 'online', lastUpdated: '1m ago' },
-    { id: '3', name: 'IMU', status: 'online', lastUpdated: '1m ago' },
-    { id: '4', name: 'Depth Sensor', status: 'online', lastUpdated: '2m ago' },
-    { id: '5', name: 'Motor Left', status: 'online', lastUpdated: '1m ago' },
-    { id: '6', name: 'Motor Right', status: 'online', lastUpdated: '1m ago' }
-  ]);
-  
-  const cameras = [
-    { id: 'main', name: 'Main Camera' },
-    { id: 'bow', name: 'Bow Camera' },
-    { id: 'stern', name: 'Stern Camera' }
-  ];
+  const { vessel, loading: vesselLoading, updateVessel } = useVesselData();
+  const { sensors, updateSensorStatus, setSensors } = useSensors(vessel?.id);
+  const { waypoints, addWaypoint } = useWaypoints(vessel?.id);
+  const { logs, addLogEntry } = useLogs(vessel?.id);
+  const { cameras } = useCameras(vessel?.id);
 
-  // Store waypoints state
-  const [waypoints, setWaypoints] = useState<Array<{
-    id: number;
-    name: string;
-    lat: number;
-    lng: number;
-  }>>([]);
-  
-  const [logs, setLogs] = useState<LogEntry[]>([
-    { id: '1', type: 'system', message: 'System initialized', timestamp: '10:30:45' },
-    { id: '2', type: 'system', message: 'Mission started', timestamp: '10:31:12' },
-    { id: '3', type: 'system', message: 'Waypoint 1 reached', timestamp: '10:45:30' },
-    { id: '4', type: 'emergency', message: 'Obstacle detected', timestamp: '10:42:15' },
-    { id: '5', type: 'system', message: 'Course adjusted', timestamp: '10:42:30' },
-    { id: '6', type: 'system', message: 'New waypoint added', timestamp: '10:50:00' }
-  ]);
+  // Convert cameras to the format expected by CameraFeed
+  const cameraOptions = cameras.map(camera => ({
+    id: camera.device_id,
+    name: camera.name
+  }));
 
   // Handle emergency stop
-  const handleEmergencyStop = () => {
+  const handleEmergencyStop = async () => {
     toast({
       title: "Emergency Stop Activated",
       description: "All motors stopped. Boat in emergency mode.",
@@ -61,41 +37,52 @@ const Index = () => {
     });
     
     // Add to logs
-    addLogEntry({
+    await addLogEntry({
       type: 'emergency',
       message: 'Emergency Stop Activated'
     });
     
-    // Update sensor status
+    // Update motor sensor status
     setSensors(prev => prev.map(sensor => 
       sensor.name.includes('Motor') 
-        ? { ...sensor, status: 'offline' as const, lastUpdated: 'just now' }
+        ? { ...sensor, status: 'offline' as const, last_updated: 'just now' }
         : sensor
     ));
+
+    // Update motor sensors in database
+    const motorSensors = sensors.filter(sensor => sensor.name.includes('Motor'));
+    for (const sensor of motorSensors) {
+      await updateSensorStatus(sensor.id, 'offline');
+    }
   };
   
   // Handle reset
-  const handleReset = () => {
+  const handleReset = async () => {
     toast({
       title: "System Reset",
       description: "All systems restarting."
     });
     
     // Add to logs
-    addLogEntry({
+    await addLogEntry({
       type: 'system',
       message: 'System reset initiated'
     });
     
     // Simulate system coming back online
-    setTimeout(() => {
+    setTimeout(async () => {
       setSensors(prev => prev.map(sensor => ({ 
         ...sensor, 
         status: 'online' as const, 
-        lastUpdated: 'just now' 
+        last_updated: 'just now' 
       })));
       
-      addLogEntry({
+      // Update all sensors in database
+      for (const sensor of sensors) {
+        await updateSensorStatus(sensor.id, 'online');
+      }
+      
+      await addLogEntry({
         type: 'system',
         message: 'System reset complete'
       });
@@ -103,69 +90,77 @@ const Index = () => {
   };
   
   // Handle adding waypoint from map
-  const handleAddWaypoint = (waypoint: { name: string; lat: number; lng: number }) => {
+  const handleAddWaypoint = async (waypoint: { name: string; lat: number; lng: number }) => {
     console.log("Adding waypoint:", waypoint);
     
-    const newWaypoint = {
-      id: waypoints.length + 1,
-      ...waypoint
-    };
-    
-    setWaypoints(prev => [...prev, newWaypoint]);
-    
-    toast({
-      title: "Waypoint Added",
-      description: `${waypoint.name} (${waypoint.lat.toFixed(4)}, ${waypoint.lng.toFixed(4)})`
+    await addWaypoint({
+      name: waypoint.name,
+      latitude: waypoint.lat,
+      longitude: waypoint.lng
     });
     
-    addLogEntry({
+    await addLogEntry({
       type: 'system',
       message: `Waypoint added: ${waypoint.name}`
     });
   };
   
-  // Helper to add log entries
-  const addLogEntry = (entry: Omit<LogEntry, 'id' | 'timestamp'>) => {
-    const now = new Date();
-    const timestamp = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    
-    setLogs(prev => [
-      {
-        id: Date.now().toString(),
-        timestamp,
-        ...entry
-      },
-      ...prev
-    ]);
-  };
-  
   // Simulate random battery drain
   useEffect(() => {
-    const interval = setInterval(() => {
-      setBatteryLevel(prev => {
-        const newLevel = prev - Math.random() * 0.5;
-        return newLevel < 10 ? 92 : newLevel;
-      });
+    if (!vessel) return;
+
+    const interval = setInterval(async () => {
+      const newLevel = vessel.battery_percentage - Math.random() * 0.5;
+      const batteryLevel = newLevel < 10 ? 92 : newLevel;
+      
+      await updateVessel({ battery_percentage: Math.round(batteryLevel) });
     }, 30000);
     
     return () => clearInterval(interval);
-  }, []);
+  }, [vessel, updateVessel]);
+
+  if (vesselLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-marine-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading vessel data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!vessel) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No vessel data found</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-screen-2xl mx-auto">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-4">Aqua Navigator Control Hub</h1>
+        <h1 className="text-2xl font-semibold text-gray-800 mb-4">
+          {vessel.name} - Control Hub
+        </h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Map Section - Left column on large screens, full width on small */}
           <div className="lg:col-span-2 space-y-4">
             {/* Main Map */}
             <div className="h-[500px]">
-              <BoatMap onAddWaypoint={(lat, lng) => handleAddWaypoint({ 
-                name: `Waypoint ${(waypoints.length % 10) + 1}`, 
-                lat, 
-                lng 
-              })} />
+              <BoatMap 
+                onAddWaypoint={(lat, lng) => handleAddWaypoint({ 
+                  name: `Waypoint ${waypoints.length + 1}`, 
+                  lat, 
+                  lng 
+                })} 
+                existingWaypoints={waypoints}
+                boatPosition={vessel.latitude && vessel.longitude ? [vessel.latitude, vessel.longitude] : undefined}
+              />
             </div>
             
             {/* Waypoint Form */}
@@ -181,10 +176,16 @@ const Index = () => {
           {/* Control Section - Right column */}
           <div className="space-y-4">
             {/* Status Panel */}
-            <StatusPanel batteryPercentage={Math.round(batteryLevel)} signalStrength={signalStrength} />
+            <StatusPanel 
+              batteryPercentage={vessel.battery_percentage} 
+              signalStrength={vessel.signal_strength} 
+            />
             
             {/* Camera Feed */}
-            <CameraFeed cameras={cameras} defaultCamera="main" />
+            <CameraFeed 
+              cameras={cameraOptions} 
+              defaultCamera={cameras.find(c => c.is_active)?.device_id || cameraOptions[0]?.id} 
+            />
             
             {/* Control Panel */}
             <ControlPanel onEmergencyStop={handleEmergencyStop} onReset={handleReset} />

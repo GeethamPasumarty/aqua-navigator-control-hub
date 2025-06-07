@@ -9,7 +9,179 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      cameras: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          vessel_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          vessel_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          vessel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cameras_vessel_id_fkey"
+            columns: ["vessel_id"]
+            isOneToOne: false
+            referencedRelation: "vessels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sensors: {
+        Row: {
+          created_at: string
+          id: string
+          last_updated: string
+          name: string
+          status: string
+          vessel_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_updated?: string
+          name: string
+          status?: string
+          vessel_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_updated?: string
+          name?: string
+          status?: string
+          vessel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sensors_vessel_id_fkey"
+            columns: ["vessel_id"]
+            isOneToOne: false
+            referencedRelation: "vessels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      system_logs: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          type: string
+          vessel_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          type: string
+          vessel_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          type?: string
+          vessel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_logs_vessel_id_fkey"
+            columns: ["vessel_id"]
+            isOneToOne: false
+            referencedRelation: "vessels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vessels: {
+        Row: {
+          battery_percentage: number
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          signal_strength: string
+          updated_at: string
+        }
+        Insert: {
+          battery_percentage?: number
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          signal_strength?: string
+          updated_at?: string
+        }
+        Update: {
+          battery_percentage?: number
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          signal_strength?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      waypoints: {
+        Row: {
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          order_index: number
+          vessel_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          name: string
+          order_index?: number
+          vessel_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string
+          order_index?: number
+          vessel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waypoints_vessel_id_fkey"
+            columns: ["vessel_id"]
+            isOneToOne: false
+            referencedRelation: "vessels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
